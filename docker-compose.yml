@@ -1,0 +1,21 @@
+services:
+  app:
+    build: .
+    ports:
+      - "${HOST_PORT:-8080}:8080"
+    environment:
+      # Optional starting value for the dollar→toman field in the Mini App.
+      USD_TOMAN: ${USD_TOMAN:-0}
+      # How long rates are cached before the next fetch.
+      CACHE_TTL: ${CACHE_TTL:-10m}
+    restart: unless-stopped
+
+  # Optional: gives the app a temporary public HTTPS URL so you can open it
+  # inside Telegram. Start with:  docker compose --profile tunnel up
+  # The URL is printed in:        docker compose logs tunnel
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    profiles: ["tunnel"]
+    command: tunnel --no-autoupdate --url http://app:8080
+    depends_on:
+      - app

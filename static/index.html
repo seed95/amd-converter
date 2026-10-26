@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dram to toman</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  /* Colors come from the Telegram theme when opened inside Telegram, and
+     fall back to these values in a normal browser. */
+  :root {
+    --c-bg: #ffffff;
+    --c-panel: #f1f2f5;
+    --c-text: #16181d;
+    --c-hint: #666d7a;
+    --c-line: #e2e4e9;
+    --c-accent: #2563e8;
+    --c-warn: #a15c00;
+    --c-good: #16794c;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --c-bg: #16181d;
+      --c-panel: #22252c;
+      --c-text: #eceef3;
+      --c-hint: #98a0ad;
+      --c-line: #2f333b;
+      --c-accent: #6b9bff;
+      --c-warn: #e3a64a;
+      --c-good: #55c38f;
+    }
+  }
+  :root {
+    --bg: var(--tg-theme-bg-color, var(--c-bg));
+    --panel: var(--tg-theme-secondary-bg-color, var(--c-panel));
+    --text: var(--tg-theme-text-color, var(--c-text));
+    --hint: var(--tg-theme-hint-color, var(--c-hint));
+    --accent: var(--tg-theme-link-color, var(--c-accent));
+    --line: var(--c-line);
+    --warn: var(--c-warn);
+    --good: var(--c-good);
+    color-scheme: light dark;
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-variant-numeric: tabular-nums;
+    padding: calc(16px + env(safe-area-inset-top, 0px)) 16px calc(24px + env(safe-area-inset-bottom, 0px));
+  }
+  main { max-width: 460px; margin: 0 auto; }
+
+  header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
+  h1 { margin: 0; font-size: 20px; line-height: 1.2; font-weight: 650; letter-spacing: -0.01em; }
+  .updated { margin: 2px 0 0; color: var(--hint); font-size: 13px; }
+  .link-btn {
+    appearance: none; border: 0; background: none; padding: 6px 0 6px 8px;
+    color: var(--accent); font: inherit; font-size: 14px; cursor: pointer;
+  }
+  .link-btn[disabled] { color: var(--hint); cursor: default; }
+  .link-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+  .fields { display: grid; gap: 12px; margin-bottom: 24px; }
+  label { display: block; font-size: 13px; color: var(--hint); margin-bottom: 4px; }
+  input {
+    width: 100%; font: inherit; font-size: 17px; font-weight: 550; color: var(--text);
+    background: var(--panel); border: 1.5px solid transparent; border-radius: 10px;
+    padding: 11px 12px; font-variant-numeric: tabular-nums;
+  }
+  input::placeholder { color: var(--hint); font-weight: 400; }
+  input:focus-visible { outline: none; border-color: var(--accent); }
+  .field-note { margin: 4px 0 0; font-size: 12px; color: var(--hint); }
+
+  /* The one memorable element: the spread across sources, stated as a range. */
+  .range { margin: 0 0 4px; }
+  .range .caption { margin: 0; font-size: 13px; color: var(--hint); }
+  .range .figure { margin: 2px 0 0; font-size: 22px; line-height: 1.2; font-weight: 700; letter-spacing: -0.015em; }
+  .range .unit { margin: 4px 0 0; font-size: 13px; color: var(--hint); }
+
+  .ledger { list-style: none; margin: 20px 0 0; padding: 0; border-top: 1px solid var(--line); }
+  .row {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto auto; column-gap: 14px; align-items: baseline;
+    padding: 12px 0; border-bottom: 1px solid var(--line);
+  }
+  .who .name { display: block; font-weight: 550; }
+  .who .sub { display: block; font-size: 12.5px; color: var(--hint); }
+  .who .sub.warn { color: var(--warn); }
+  .usd { color: var(--hint); text-align: right; }
+  .toman { text-align: right; font-weight: 650; min-width: 6.5em; }
+  .toman small { display: block; font-weight: 400; font-size: 12px; color: var(--hint); }
+  .toman small.up { color: var(--good); }
+  .toman small.down { color: var(--warn); }
+  .row.off { grid-template-columns: 1fr; }
+
+  footer { margin-top: 24px; font-size: 12px; color: var(--hint); }
+  footer a { color: inherit; }
+  footer p { margin: 0 0 6px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>Dram to toman</h1>
+      <p class="updated" id="updated">Loading rates…</p>
+    </div>
+    <button class="link-btn" id="refresh" type="button">Refresh rates</button>
+  </header>
+
+  <section class="fields" aria-label="Inputs">
+    <div>
+      <label for="amd">Price in dram</label>
+      <input id="amd" inputmode="decimal" autocomplete="off" placeholder="130,000">
+    </div>
+    <div>
+      <label for="toman">Dollar rate in toman</label>
+      <input id="toman" inputmode="decimal" autocomplete="off" placeholder="e.g. 165,000">
+      <p class="field-note" id="tomanNote">Enter today’s rate to see toman. It is saved on this device.</p>
+    </div>
+    <div>
+      <label for="iran">Price in Iran, in toman (optional)</label>
+      <input id="iran" inputmode="decimal" autocomplete="off" placeholder="Compare with the Iran price">
+    </div>
+  </section>
+
+  <section class="range" id="range" aria-live="polite"></section>
+  <ul class="ledger" id="ledger"></ul>
+
+  <footer>
+    <p>Rates are indicative. Exchange offices and sellers will differ a little.</p>
+    <p><a href="https://www.exchangerate-api.com" target="_blank" rel="noopener">Rates By Exchange Rate API</a></p>
+  </footer>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  var tg = window.Telegram && window.Telegram.WebApp;
+  if (tg) {
+    tg.ready();
+    tg.expand();
+  }
+
+  var $ = function (id) { return document.getElementById(id); };
+  var fmt0 = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
+  var fmt2 = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  var state = { sources: [], defaultToman: 0, fetchedAt: null };
+
+  // ---- storage (can throw inside some webviews) --------------------------
+  function load(key) { try { return localStorage.getItem(key) || ''; } catch (e) { return ''; } }
+  function save(key, val) { try { localStorage.setItem(key, val); } catch (e) { /* ignore */ } }
+
+  // ---- number input: accepts Persian/Arabic digits, commas, spaces -------
+  function parseNum(s) {
+    s = String(s || '')
+      .replace(/[۰-۹]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); })
+      .replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); })
+      .replace(/[,٬\s]/g, '')
+      .replace(/٫/g, '.');
+    var n = parseFloat(s);
+    return isFinite(n) && n > 0 ? n : NaN;
+  }
+  function pretty(input) {
+    var n = parseNum(input.value);
+    if (!isNaN(n)) input.value = fmt2.format(n).replace(/\.00$/, '');
+  }
+
+  var amdEl = $('amd'), tomanEl = $('toman'), iranEl = $('iran');
+  amdEl.value = load('amd');
+  tomanEl.value = load('toman');
+  iranEl.value = load('iran');
+
+  [[amdEl, 'amd'], [tomanEl, 'toman'], [iranEl, 'iran']].forEach(function (p) {
+    p[0].addEventListener('input', function () { save(p[1], p[0].value); render(); });
+    p[0].addEventListener('blur', function () { pretty(p[0]); save(p[1], p[0].value); });
+  });
+
+  // ---- data ---------------------------------------------------------------
+  function fetchRates() {
+    var btn = $('refresh');
+    btn.disabled = true;
+    return fetch('/api/rates', { cache: 'no-store' })
+      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(function (data) {
+        state.sources = data.sources || [];
+        state.defaultToman = data.usd_toman_default || 0;
+        state.fetchedAt = new Date(data.fetched_at);
+        if (!tomanEl.value && state.defaultToman > 0) {
+          tomanEl.value = fmt0.format(state.defaultToman);
+        }
+        $('updated').textContent = 'Checked at ' + state.fetchedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      })
+      .catch(function (e) {
+        $('updated').textContent = 'Could not load rates (' + e.message + ')';
+      })
+      .then(function () { btn.disabled = false; render(); });
+  }
+
+  // ---- conversion ---------------------------------------------------------
+  function shortDate(s) {
+    var d = new Date(s);
+    return isNaN(d) ? s : d.toLocaleDateString([], { day: 'numeric', month: 'short' });
+  }
+
+  function buildRows(amd, usdToman) {
+    var rows = [];
+    function push(q, label, sub, rate) {
+      rows.push({ q: q, label: label, sub: sub, rate: rate,
+        usd: amd / rate, toman: usdToman > 0 ? (amd / rate) * usdToman : NaN });
+    }
+    state.sources.forEach(function (q) {
+      var hasRate = q.mid > 0 || q.sell > 0 || q.buy > 0;
+      if (!hasRate) {
+        if (q.error && window.console) console.warn(q.name + ': ' + q.error);
+        rows.push({ q: q, label: q.name, off: true, sub: 'Could not fetch this rate. Try refreshing in a minute.' });
+        return;
+      }
+      if (q.mid > 0) push(q, q.name, fmt2.format(q.mid) + ' dram per $1' + (q.as_of ? ', ' + shortDate(q.as_of) : ''), q.mid);
+      if (q.sell > 0) push(q, q.name + ', you buy dollars', fmt2.format(q.sell) + ' dram per $1', q.sell);
+      if (q.buy > 0) push(q, q.name + ', you sell dollars', fmt2.format(q.buy) + ' dram per $1', q.buy);
+    });
+    return rows;
+  }
+
+  // ---- render -------------------------------------------------------------
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text) n.textContent = text;
+    return n;
+  }
+
+  function render() {
+    var amd = parseNum(amdEl.value);
+    var usdToman = parseNum(tomanEl.value);
+    var iran = parseNum(iranEl.value);
+    var range = $('range'), ledger = $('ledger');
+
+    $('tomanNote').textContent = usdToman > 0
+      ? 'Saved on this device.'
+      : 'Enter today’s rate to see toman. It is saved on this device.';
+
+    range.textContent = '';
+    ledger.textContent = '';
+
+    if (isNaN(amd)) {
+      ledger.style.display = 'none';
+      if (state.sources.length) range.appendChild(el('p', 'caption', 'Enter a price in dram to convert it.'));
+      return;
+    }
+    ledger.style.display = '';
+
+    var rows = buildRows(amd, usdToman);
+    var live = rows.filter(function (r) { return !r.off; });
+
+    if (live.length) {
+      var useToman = usdToman > 0;
+      var vals = live.map(function (r) { return useToman ? r.toman : r.usd; });
+      var lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
+      var f = useToman ? fmt0 : fmt2;
+      var p = useToman ? '' : '$';
+      var same = f.format(lo) === f.format(hi);
+      range.appendChild(el('p', 'caption', fmt0.format(amd) + ' dram is worth' + (same ? '' : ' between')));
+      range.appendChild(el('p', 'figure', same ? p + f.format(lo) : p + f.format(lo) + ' to ' + p + f.format(hi)));
+      range.appendChild(el('p', 'unit', useToman
+        ? 'toman, across ' + live.length + ' rate' + (live.length > 1 ? 's' : '')
+        : 'US dollars. Add the dollar rate above to see toman.'));
+    }
+
+    rows.forEach(function (r) {
+      var li = el('li', 'row' + (r.off ? ' off' : ''));
+      var who = el('div', 'who');
+      who.appendChild(el('span', 'name', r.label));
+      who.appendChild(el('span', 'sub' + (r.off ? ' warn' : ''), r.sub));
+      if (r.q.stale && !r.off) who.appendChild(el('span', 'sub warn', 'Showing the last known value. Refresh failed.'));
+      li.appendChild(who);
+
+      if (!r.off) {
+        li.appendChild(el('div', 'usd', '$' + fmt2.format(r.usd)));
+        var t = el('div', 'toman', isNaN(r.toman) ? '' : fmt0.format(r.toman));
+        if (!isNaN(r.toman) && iran > 0) {
+          var diff = (iran / r.toman - 1) * 100;
+          t.appendChild(el('small', diff >= 0 ? 'up' : 'down',
+            'Iran ' + Math.abs(diff).toFixed(1) + '% ' + (diff >= 0 ? 'higher' : 'lower')));
+        }
+        li.appendChild(t);
+      }
+      ledger.appendChild(li);
+    });
+  }
+
+  $('refresh').addEventListener('click', fetchRates);
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden && state.fetchedAt && Date.now() - state.fetchedAt.getTime() > 5 * 60 * 1000) fetchRates();
+  });
+
+  render();
+  fetchRates();
+})();
+</script>
+</body>
+</html>

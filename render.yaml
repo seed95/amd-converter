@@ -1,0 +1,13 @@
+# Render Blueprint: New > Blueprint > connect this repo > Apply.
+services:
+  - type: web
+    name: amd-converter
+    runtime: docker
+    plan: free
+    region: frankfurt        # closest option to Armenia; can't be changed after creation
+    healthCheckPath: /healthz
+    envVars:
+      - key: CACHE_TTL
+        value: 10m
+      - key: USD_TOMAN       # optional starting value for the toman field; 0 = none
+        value: "0"
