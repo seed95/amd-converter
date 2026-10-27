@@ -113,17 +113,17 @@
 
   <section class="fields" aria-label="Inputs">
     <div>
-      <label for="amd">Price in dram</label>
-      <input id="amd" inputmode="decimal" autocomplete="off" placeholder="130,000">
+      <label for="amd">Price in dram (thousands)</label>
+      <input id="amd" inputmode="decimal" autocomplete="off" placeholder="130">
     </div>
     <div>
-      <label for="toman">Dollar rate in toman</label>
-      <input id="toman" inputmode="decimal" autocomplete="off" placeholder="e.g. 165,000">
+      <label for="toman">Dollar rate in toman (thousands)</label>
+      <input id="toman" inputmode="decimal" autocomplete="off" placeholder="e.g. 165">
       <p class="field-note" id="tomanNote">Enter today’s rate to see toman. It is saved on this device.</p>
     </div>
     <div>
-      <label for="iran">Price in Iran, in toman (optional)</label>
-      <input id="iran" inputmode="decimal" autocomplete="off" placeholder="Compare with the Iran price">
+      <label for="iran">Price in Iran, in toman — thousands (optional)</label>
+      <input id="iran" inputmode="decimal" autocomplete="off" placeholder="e.g. 13000 for 13,000,000 toman">
     </div>
   </section>
 
@@ -192,7 +192,7 @@
         state.defaultToman = data.usd_toman_default || 0;
         state.fetchedAt = new Date(data.fetched_at);
         if (!tomanEl.value && state.defaultToman > 0) {
-          tomanEl.value = fmt0.format(state.defaultToman);
+          tomanEl.value = fmt0.format(state.defaultToman / 1000);
         }
         $('updated').textContent = 'Checked at ' + state.fetchedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       })
@@ -237,9 +237,9 @@
   }
 
   function render() {
-    var amd = parseNum(amdEl.value);
-    var usdToman = parseNum(tomanEl.value);
-    var iran = parseNum(iranEl.value);
+    var amd = parseNum(amdEl.value) * 1000;
+    var usdToman = parseNum(tomanEl.value) * 1000;
+    var iran = parseNum(iranEl.value) * 1000;
     var range = $('range'), ledger = $('ledger');
 
     $('tomanNote').textContent = usdToman > 0
