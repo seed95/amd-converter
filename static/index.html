@@ -222,8 +222,8 @@
         return;
       }
       if (q.mid > 0) push(q, q.name, fmt2.format(q.mid) + ' dram per $1' + (q.as_of ? ', ' + shortDate(q.as_of) : ''), q.mid);
-      if (q.sell > 0) push(q, q.name + ', you buy dollars', fmt2.format(q.sell) + ' dram per $1', q.sell);
       if (q.buy > 0) push(q, q.name + ', you sell dollars', fmt2.format(q.buy) + ' dram per $1', q.buy);
+      if (q.sell > 0) push(q, q.name + ', you buy dollars', fmt2.format(q.sell) + ' dram per $1', q.sell);
     });
     return rows;
   }
