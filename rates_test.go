@@ -159,6 +159,36 @@ func TestStoreCachesAndServesStale(t *testing.T) {
 	}
 }
 
+func TestParseBinanceP2P(t *testing.T) {
+	t.Run("averages top-5 prices", func(t *testing.T) {
+		body := []byte(`{"code":"000000","data":[
+			{"adv":{"price":"358.32"}},
+			{"adv":{"price":"358.40"}},
+			{"adv":{"price":"359.00"}}
+		]}`)
+		got, err := parseBinanceP2P(body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		near(t, got, (358.32+358.40+359.00)/3)
+	})
+	t.Run("API error code", func(t *testing.T) {
+		if _, err := parseBinanceP2P([]byte(`{"code":"100001","data":[]}`)); err == nil {
+			t.Fatal("expected error for non-000000 code")
+		}
+	})
+	t.Run("empty data", func(t *testing.T) {
+		if _, err := parseBinanceP2P([]byte(`{"code":"000000","data":[]}`)); err == nil {
+			t.Fatal("expected error for empty data")
+		}
+	})
+	t.Run("bad JSON", func(t *testing.T) {
+		if _, err := parseBinanceP2P([]byte(`not json`)); err == nil {
+			t.Fatal("expected error for bad JSON")
+		}
+	})
+}
+
 func TestStoreFirstFetchFails(t *testing.T) {
 	src := Source{ID: "x", Name: "X", Fetch: func(ctx context.Context) (Quote, error) {
 		return Quote{}, errors.New("nope")

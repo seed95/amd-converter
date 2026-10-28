@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"encoding/xml"
@@ -217,4 +218,92 @@ func parseSAS(body []byte, s Source) (Quote, error) {
 
 func parseDecimal(s string) (float64, error) {
 	return strconv.ParseFloat(strings.Replace(s, ",", ".", 1), 64)
+}
+
+// ---------------------------------------------------------------------------
+// Binance P2P: live peer-to-peer USDT/AMD rates.
+// USDT ≈ USD, so the rates serve as a real-time USD/AMD proxy.
+// tradeType=BUY  → user buys  USDT with AMD → Sell rate (you pay more AMD)
+// tradeType=SELL → user sells USDT for  AMD → Buy  rate (you get fewer AMD)
+// We average the top-5 ads for each side.
+// ---------------------------------------------------------------------------
+
+func newBinanceSource(client *http.Client, url string) Source {
+	s := Source{ID: "binance", Name: "Binance P2P (USDT)"}
+	s.Fetch = func(ctx context.Context) (Quote, error) {
+		sell, err := fetchBinanceP2P(ctx, client, url, "BUY")
+		if err != nil {
+			return Quote{}, fmt.Errorf("buy-side: %w", err)
+		}
+		buy, err := fetchBinanceP2P(ctx, client, url, "SELL")
+		if err != nil {
+			return Quote{}, fmt.Errorf("sell-side: %w", err)
+		}
+		return Quote{ID: s.ID, Name: s.Name, Buy: f64(buy), Sell: f64(sell)}, nil
+	}
+	return s
+}
+
+func fetchBinanceP2P(ctx context.Context, client *http.Client, apiURL, tradeType string) (float64, error) {
+	payload, _ := json.Marshal(map[string]any{
+		"fiat":                      "AMD",
+		"page":                      1,
+		"rows":                      5,
+		"tradeType":                 tradeType,
+		"asset":                     "USDT",
+		"countries":                 []string{},
+		"proMerchantAds":            false,
+		"shieldMerchantAds":         false,
+		"filterType":                "all",
+		"additionalKycVerifyFilter": 0,
+		"publisherType":             nil,
+		"payTypes":                  []string{},
+		"classifies":                []string{"mass", "profession"},
+	})
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, apiURL, bytes.NewReader(payload))
+	if err != nil {
+		return 0, err
+	}
+	req.Header.Set("User-Agent", userAgent)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "*/*")
+	body, err := do(client, req)
+	if err != nil {
+		return 0, err
+	}
+	return parseBinanceP2P(body)
+}
+
+func parseBinanceP2P(body []byte) (float64, error) {
+	var r struct {
+		Code string `json:"code"`
+		Data []struct {
+			Adv struct {
+				Price string `json:"price"`
+			} `json:"adv"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &r); err != nil {
+		return 0, fmt.Errorf("bad JSON: %w", err)
+	}
+	if r.Code != "000000" {
+		return 0, fmt.Errorf("API error code=%s", r.Code)
+	}
+	if len(r.Data) == 0 {
+		return 0, errors.New("no P2P ads found")
+	}
+	var sum float64
+	var n int
+	for _, d := range r.Data {
+		p, err := strconv.ParseFloat(d.Adv.Price, 64)
+		if err != nil || p <= 0 {
+			continue
+		}
+		sum += p
+		n++
+	}
+	if n == 0 {
+		return 0, errors.New("no valid prices in response")
+	}
+	return sum / float64(n), nil
 }

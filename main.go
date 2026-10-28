@@ -33,6 +33,7 @@ func main() {
 		newMarketSource(client, env("MARKET_URL", "https://open.er-api.com/v6/latest/USD")),
 		newCBASource(client, env("CBA_URL", "http://api.cba.am/exchangerates.asmx")),
 		newSASSource(client, env("SAS_URL", "https://www.sas.am/")),
+		newBinanceSource(client, env("BINANCE_P2P_URL", "https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search")),
 	}, ttl)
 
 	mux := http.NewServeMux()
